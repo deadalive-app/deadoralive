@@ -73,6 +73,8 @@ export type AlertType =
   | 'missed_checkin'
   | 'dead_mans_switch'
   | 'night_watch'
+  | 'walk_me_home'
+  | 'duress'
   | 'circle_alert'
   | 'timer_expired';
 
@@ -115,6 +117,8 @@ export interface SafetyScore {
 export interface PremiumFeatures {
   deadMansSwitch: boolean;
   nightWatch: boolean;
+  walkMeHome: boolean;
+  duressPin: boolean;
   heartbeatPulse: boolean;
   customAlertMessages: boolean;
   unlimitedCircles: boolean;
@@ -130,6 +134,27 @@ export type OnboardingStep =
   | 'permissions'
   | 'complete';
 
+export interface PauseCheckIns {
+  paused: boolean;
+  pausedAt: number | null;
+  resumeAt: number | null;
+  reason?: string;
+}
+
+export interface WalkMeHome {
+  enabled: boolean;
+  isActive: boolean;
+  startedAt: number | null;
+  durationMinutes: number;
+  alertMessage: string;
+  destination?: string;
+}
+
+export interface DuressPin {
+  enabled: boolean;
+  pin: string;
+}
+
 export interface AppSettings {
   notifications: boolean;
   location: boolean;
@@ -139,4 +164,6 @@ export interface AppSettings {
   checkInReminderHour: number;
   missedCheckInThresholdDays: number;
   autoShareLocation: boolean;
+  shakeToSOS: boolean;
+  persistentNotification: boolean;
 }

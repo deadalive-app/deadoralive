@@ -24,10 +24,16 @@ const getAlertTypeConfig = (
       return { emoji: '💀', color: Colors.dead, label: "Dead Man's Switch" };
     case 'night_watch':
       return { emoji: '🌙', color: Colors.warning, label: 'Night Watch' };
+    case 'walk_me_home':
+      return { emoji: '🚶', color: Colors.warning, label: 'Walk Me Home' };
+    case 'duress':
+      return { emoji: '⚠️', color: Colors.sos, label: 'Duress Alert' };
     case 'circle_alert':
       return { emoji: '🔔', color: Colors.alive, label: 'Circle Alert' };
     case 'timer_expired':
       return { emoji: '⌛', color: Colors.dead, label: 'Timer Expired' };
+    default:
+      return { emoji: '🔔', color: Colors.warning, label: 'Alert' };
   }
 };
 

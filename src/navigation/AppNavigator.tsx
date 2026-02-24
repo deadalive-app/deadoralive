@@ -19,6 +19,7 @@ import ShareLocationScreen from '../screens/ShareLocationScreen';
 import AlertHistoryScreen from '../screens/AlertHistoryScreen';
 import DeadMansSwitchScreen from '../screens/DeadMansSwitchScreen';
 import NightWatchScreen from '../screens/NightWatchScreen';
+import WalkMeHomeScreen from '../screens/WalkMeHomeScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import PremiumScreen from '../screens/PremiumScreen';
 import TrustedContactsScreen from '../screens/TrustedContactsScreen';
@@ -125,6 +126,7 @@ export default function AppNavigator() {
             />
             <Stack.Screen name="DeadMansSwitch" component={DeadMansSwitchScreen} />
             <Stack.Screen name="NightWatch" component={NightWatchScreen} />
+            <Stack.Screen name="WalkMeHome" component={WalkMeHomeScreen} />
             <Stack.Screen
               name="Premium"
               component={PremiumScreen}

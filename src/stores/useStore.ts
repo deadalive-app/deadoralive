@@ -13,6 +13,9 @@ import type {
   FakeCallConfig,
   DeadMansSwitch,
   NightWatch,
+  WalkMeHome,
+  DuressPin,
+  PauseCheckIns,
   SafetyScore,
   AppSettings,
   UserStatus,
@@ -47,6 +50,9 @@ interface AppState {
   fakeCallConfig: FakeCallConfig;
   deadMansSwitch: DeadMansSwitch;
   nightWatch: NightWatch;
+  walkMeHome: WalkMeHome;
+  duressPin: DuressPin;
+  pauseCheckIns: PauseCheckIns;
   safetyScore: SafetyScore;
 
   // Settings
@@ -83,6 +89,11 @@ interface AppState {
   updateFakeCallConfig: (config: Partial<FakeCallConfig>) => void;
   updateDeadMansSwitch: (config: Partial<DeadMansSwitch>) => void;
   updateNightWatch: (config: Partial<NightWatch>) => void;
+  updateWalkMeHome: (config: Partial<WalkMeHome>) => void;
+  triggerWalkMeHomeAlert: () => Alert;
+  updateDuressPin: (config: Partial<DuressPin>) => void;
+  triggerDuressAlert: () => Alert;
+  updatePauseCheckIns: (config: Partial<PauseCheckIns>) => void;
   recalculateSafetyScore: () => void;
 
   // Actions — Settings
@@ -117,6 +128,27 @@ const defaultNightWatch: NightWatch = {
   isActive: false,
 };
 
+const defaultWalkMeHome: WalkMeHome = {
+  enabled: false,
+  isActive: false,
+  startedAt: null,
+  durationMinutes: 15,
+  alertMessage: "I haven't arrived at my destination. Please check on me.",
+  destination: undefined,
+};
+
+const defaultDuressPin: DuressPin = {
+  enabled: false,
+  pin: '',
+};
+
+const defaultPauseCheckIns: PauseCheckIns = {
+  paused: false,
+  pausedAt: null,
+  resumeAt: null,
+  reason: undefined,
+};
+
 const defaultSafetyScore: SafetyScore = {
   total: 0,
   streakScore: 0,
@@ -136,6 +168,8 @@ const defaultSettings: AppSettings = {
   checkInReminderHour: 20, // 8 PM
   missedCheckInThresholdDays: 2,
   autoShareLocation: false,
+  shakeToSOS: false,
+  persistentNotification: false,
 };
 
 export const useStore = create<AppState>()(
@@ -153,6 +187,9 @@ export const useStore = create<AppState>()(
       fakeCallConfig: defaultFakeCallConfig,
       deadMansSwitch: defaultDeadMansSwitch,
       nightWatch: defaultNightWatch,
+      walkMeHome: defaultWalkMeHome,
+      duressPin: defaultDuressPin,
+      pauseCheckIns: defaultPauseCheckIns,
       safetyScore: defaultSafetyScore,
       settings: defaultSettings,
       isPremium: false,
@@ -347,6 +384,15 @@ export const useStore = create<AppState>()(
       },
 
       triggerMissedCheckInAlert: () => {
+        const { pauseCheckIns } = get();
+        // If paused and still within pause window, suppress alert
+        if (pauseCheckIns.paused && pauseCheckIns.resumeAt && Date.now() < pauseCheckIns.resumeAt) {
+          return { id: '', type: 'missed_checkin', timestamp: 0, message: '', recipients: [], status: 'expired' } as Alert;
+        }
+        // Auto-resume if past resumeAt
+        if (pauseCheckIns.paused && pauseCheckIns.resumeAt && Date.now() >= pauseCheckIns.resumeAt) {
+          set({ pauseCheckIns: { ...get().pauseCheckIns, paused: false, pausedAt: null, resumeAt: null, reason: undefined } });
+        }
         const alert: Alert = {
           id: generateId(),
           type: 'missed_checkin',
@@ -382,6 +428,47 @@ export const useStore = create<AppState>()(
 
       updateNightWatch: (config) => {
         set({ nightWatch: { ...get().nightWatch, ...config } });
+      },
+
+      updateWalkMeHome: (config) => {
+        set({ walkMeHome: { ...get().walkMeHome, ...config } });
+      },
+
+      triggerWalkMeHomeAlert: () => {
+        const alert: Alert = {
+          id: generateId(),
+          type: 'walk_me_home',
+          timestamp: Date.now(),
+          message: get().walkMeHome.alertMessage || "I haven't arrived at my destination. Please check on me.",
+          recipients: get().emergencyContacts.map((c) => c.phone),
+          status: 'sent',
+        };
+        set({
+          alerts: [alert, ...get().alerts],
+          walkMeHome: { ...get().walkMeHome, isActive: false, startedAt: null },
+        });
+        return alert;
+      },
+
+      updateDuressPin: (config) => {
+        set({ duressPin: { ...get().duressPin, ...config } });
+      },
+
+      triggerDuressAlert: () => {
+        const alert: Alert = {
+          id: generateId(),
+          type: 'duress',
+          timestamp: Date.now(),
+          message: `DURESS ALERT: ${get().user?.name || 'User'} may be under coercion. This is a silent distress signal. Please call authorities.`,
+          recipients: get().emergencyContacts.map((c) => c.phone),
+          status: 'sent',
+        };
+        set({ alerts: [alert, ...get().alerts] });
+        return alert;
+      },
+
+      updatePauseCheckIns: (config) => {
+        set({ pauseCheckIns: { ...get().pauseCheckIns, ...config } });
       },
 
       recalculateSafetyScore: () => {
@@ -424,6 +511,9 @@ export const useStore = create<AppState>()(
           fakeCallConfig: defaultFakeCallConfig,
           deadMansSwitch: defaultDeadMansSwitch,
           nightWatch: defaultNightWatch,
+          walkMeHome: defaultWalkMeHome,
+          duressPin: defaultDuressPin,
+          pauseCheckIns: defaultPauseCheckIns,
           safetyScore: defaultSafetyScore,
           settings: defaultSettings,
           isPremium: false,

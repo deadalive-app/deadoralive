@@ -37,6 +37,8 @@ const FEATURES: FeatureRow[] = [
   { name: 'Fake Call', free: 'Basic', premium: 'Custom callers' },
   { name: "Dead Man's Switch", free: '\uD83D\uDD12', premium: '\u2713' },
   { name: 'Night Watch', free: '\uD83D\uDD12', premium: '\u2713' },
+  { name: 'Walk Me Home', free: '\uD83D\uDD12', premium: '\u2713' },
+  { name: 'Duress PIN', free: '\uD83D\uDD12', premium: '\u2713' },
   { name: 'Heartbeat Pulse', free: '\uD83D\uDD12', premium: '\u2713' },
   { name: 'Custom Alert Messages', free: '\uD83D\uDD12', premium: '\u2713' },
   { name: 'Stealth Mode', free: '\uD83D\uDD12', premium: '\u2713' },

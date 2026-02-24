@@ -12,3 +12,4 @@ export { default as CircleMemberRow } from './CircleMemberRow';
 export { default as AlertRow } from './AlertRow';
 export { default as ScoreRing } from './ScoreRing';
 export { default as PhoneInput } from './PhoneInput';
+export { default as PinPad } from './PinPad';

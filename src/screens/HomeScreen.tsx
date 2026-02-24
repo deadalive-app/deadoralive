@@ -15,7 +15,8 @@ import {
 import * as Haptics from 'expo-haptics';
 import { useStore } from '../stores/useStore';
 import { formatTimestamp, getScoreGrade } from '../utils/helpers';
-import type { Alert, AlertType } from '../types';
+import PinPad from '../components/PinPad';
+import type { Alert as AlertData, AlertType } from '../types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -41,6 +42,10 @@ const getAlertEmoji = (type: AlertType): string => {
       return '\u{1F480}';
     case 'night_watch':
       return '\u{1F319}';
+    case 'walk_me_home':
+      return '\u{1F6B6}';
+    case 'duress':
+      return '\u26A0\uFE0F';
     case 'circle_alert':
       return '\u{1F465}';
     case 'timer_expired':
@@ -113,11 +118,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const alerts = useStore((s) => s.alerts);
   const settings = useStore((s) => s.settings);
   const isPremium = useStore((s) => s.isPremium);
+  const pauseCheckIns = useStore((s) => s.pauseCheckIns);
+  const duressPin = useStore((s) => s.duressPin);
+  const triggerDuressAlert = useStore((s) => s.triggerDuressAlert);
 
   // Local state
   const [checkedInToday, setCheckedInToday] = useState<boolean>(false);
   const [justCheckedIn, setJustCheckedIn] = useState<boolean>(false);
   const [countdown, setCountdown] = useState<string>('');
+  const [showPinPad, setShowPinPad] = useState<boolean>(false);
 
   // Animation refs
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -216,6 +225,40 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     });
   }, [settings.haptics, performCheckIn, checkInOpacityAnim]);
 
+  // Handle duress PIN long-press
+  const handleDuressEntry = useCallback(() => {
+    if (!duressPin.enabled || !isPremium) return;
+    if (settings.haptics) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setShowPinPad(true);
+  }, [duressPin.enabled, isPremium, settings.haptics]);
+
+  // Handle duress PIN submission
+  const handlePinSubmit = useCallback((pin: string) => {
+    setShowPinPad(false);
+    if (pin === duressPin.pin) {
+      // Silent duress alert + fake check-in animation
+      triggerDuressAlert();
+      performCheckIn();
+      setCheckedInToday(true);
+      setJustCheckedIn(true);
+      Animated.sequence([
+        Animated.timing(checkInOpacityAnim, {
+          toValue: 1,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.delay(1200),
+        Animated.timing(checkInOpacityAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]).start(() => setJustCheckedIn(false));
+    }
+  }, [duressPin.pin, triggerDuressAlert, performCheckIn, checkInOpacityAnim]);
+
   // Quick actions
   const quickActions: QuickAction[] = [
     {
@@ -261,6 +304,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   // Greeting
   const userName = user?.name || 'Friend';
   const isOverdue = lastCheckIn ? (Date.now() - lastCheckIn > 24 * 60 * 60 * 1000) : false;
+  const isPaused = !!(pauseCheckIns.paused && pauseCheckIns.resumeAt && Date.now() < pauseCheckIns.resumeAt);
 
   return (
     <View style={styles.container}>
@@ -286,13 +330,34 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         </View>
 
         {/* ─── Safety Status Banner ────────────────────────────── */}
-        <View style={[styles.statusBanner, isOverdue && styles.statusBannerDanger]}>
-          <View style={[styles.statusDot, isOverdue ? styles.statusDotDanger : styles.statusDotOk]} />
-          <Text style={[styles.statusLabel, isOverdue && styles.statusLabelDanger]}>
-            {isOverdue ? 'Status: OVERDUE' : checkedInToday ? 'Status: ALIVE' : 'Status: PENDING'}
+        <View style={[
+          styles.statusBanner,
+          isOverdue && !isPaused && styles.statusBannerDanger,
+          isPaused && styles.statusBannerPaused,
+        ]}>
+          <View style={[
+            styles.statusDot,
+            isPaused ? styles.statusDotPaused : isOverdue ? styles.statusDotDanger : styles.statusDotOk,
+          ]} />
+          <Text style={[
+            styles.statusLabel,
+            isOverdue && !isPaused && styles.statusLabelDanger,
+            isPaused && styles.statusLabelPaused,
+          ]}>
+            {isPaused
+              ? 'Status: PAUSED'
+              : isOverdue
+                ? 'Status: OVERDUE'
+                : checkedInToday
+                  ? 'Status: ALIVE'
+                  : 'Status: PENDING'}
           </Text>
           <Text style={styles.statusCountdown}>
-            {checkedInToday ? `Next in ${countdown}` : countdown}
+            {isPaused && pauseCheckIns.resumeAt
+              ? `Resumes ${new Date(pauseCheckIns.resumeAt).toLocaleDateString()}`
+              : checkedInToday
+                ? `Next in ${countdown}`
+                : countdown}
           </Text>
         </View>
 
@@ -300,6 +365,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={handleCheckIn}
+          onLongPress={handleDuressEntry}
+          delayLongPress={800}
           style={styles.statusCard}
         >
           <View style={styles.circleContainer}>
@@ -438,6 +505,21 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <TouchableOpacity
             style={styles.toolCard}
             activeOpacity={0.7}
+            onPress={() => navigation.navigate('WalkMeHome')}
+          >
+            <View style={[styles.toolIconBg, { backgroundColor: 'rgba(0,180,255,0.12)' }]}>
+              <Text style={styles.toolEmoji}>{'\u{1F6B6}'}</Text>
+            </View>
+            <View style={styles.toolContent}>
+              <Text style={styles.toolTitle}>Walk Me Home</Text>
+              <Text style={styles.toolDesc}>Trip timer with location</Text>
+            </View>
+            {!isPremium && <Text style={styles.proBadge}>PRO</Text>}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.toolCard}
+            activeOpacity={0.7}
             onPress={() => navigation.navigate('TrustedContacts')}
           >
             <View style={[styles.toolIconBg, { backgroundColor: 'rgba(0,255,136,0.12)' }]}>
@@ -505,7 +587,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           </View>
 
           {recentAlerts.length > 0 ? (
-            recentAlerts.map((alert: Alert) => (
+            recentAlerts.map((alert: AlertData) => (
               <View key={alert.id} style={styles.activityItem}>
                 <Text style={styles.activityEmoji}>
                   {getAlertEmoji(alert.type)}
@@ -558,6 +640,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         {/* Bottom spacing */}
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* Duress PIN Pad */}
+      <PinPad
+        visible={showPinPad}
+        onClose={() => setShowPinPad(false)}
+        onSubmit={handlePinSubmit}
+        title="Enter PIN"
+      />
     </View>
   );
 };
@@ -633,6 +723,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 59, 92, 0.08)',
     borderColor: 'rgba(255, 59, 92, 0.2)',
   },
+  statusBannerPaused: {
+    backgroundColor: 'rgba(255, 184, 0, 0.08)',
+    borderColor: 'rgba(255, 184, 0, 0.2)',
+  },
   statusDot: {
     width: 10,
     height: 10,
@@ -651,6 +745,12 @@ const styles = StyleSheet.create({
       ? { shadowColor: '#FF3B5C', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 6 }
       : { elevation: 4 }),
   },
+  statusDotPaused: {
+    backgroundColor: '#FFB800',
+    ...(Platform.OS === 'ios'
+      ? { shadowColor: '#FFB800', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 6 }
+      : { elevation: 4 }),
+  },
   statusLabel: {
     flex: 1,
     fontSize: 14,
@@ -660,6 +760,9 @@ const styles = StyleSheet.create({
   },
   statusLabelDanger: {
     color: '#FF3B5C',
+  },
+  statusLabelPaused: {
+    color: '#FFB800',
   },
   statusCountdown: {
     fontSize: 13,

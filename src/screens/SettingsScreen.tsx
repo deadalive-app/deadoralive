@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useStore } from '../stores/useStore';
 import PhoneInput from '../components/PhoneInput';
+import PinPad from '../components/PinPad';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -57,6 +58,10 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const addContact = useStore((s) => s.addContact);
   const removeContact = useStore((s) => s.removeContact);
   const updateSettings = useStore((s) => s.updateSettings);
+  const pauseCheckIns = useStore((s) => s.pauseCheckIns);
+  const updatePauseCheckIns = useStore((s) => s.updatePauseCheckIns);
+  const duressPin = useStore((s) => s.duressPin);
+  const updateDuressPin = useStore((s) => s.updateDuressPin);
   const resetApp = useStore((s) => s.resetApp);
 
   // Add Contact Modal state
@@ -64,6 +69,10 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
   const [newContactRelationship, setNewContactRelationship] = useState('Friend');
+  const [pauseReason, setPauseReason] = useState(pauseCheckIns.reason || '');
+  const [showSetPin, setShowSetPin] = useState(false);
+  const [showConfirmPin, setShowConfirmPin] = useState(false);
+  const [pendingPin, setPendingPin] = useState('');
 
   // ─── Handlers ───────────────────────────────────────────────────────────
 
@@ -285,6 +294,104 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           </View>
         </View>
 
+        {/* ─── Pause Check-ins Card ──────────────────────────────── */}
+        <Text style={styles.sectionTitle}>Pause Check-ins</Text>
+        <View style={styles.card}>
+          <View style={styles.settingRow}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={styles.settingLabel}>Pause Check-ins</Text>
+              <Text style={styles.contactRelationship}>
+                Temporarily stop reminders & missed alerts
+              </Text>
+            </View>
+            <Switch
+              value={pauseCheckIns.paused}
+              onValueChange={(value) => {
+                if (value) {
+                  updatePauseCheckIns({
+                    paused: true,
+                    pausedAt: Date.now(),
+                    resumeAt: Date.now() + 1 * 24 * 60 * 60 * 1000, // default 1 day
+                  });
+                } else {
+                  updatePauseCheckIns({
+                    paused: false,
+                    pausedAt: null,
+                    resumeAt: null,
+                    reason: undefined,
+                  });
+                  setPauseReason('');
+                }
+              }}
+              trackColor={{ false: '#2A2A40', true: '#FFB800' }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          {pauseCheckIns.paused && (
+            <>
+              <View style={styles.divider} />
+              <Text style={[styles.contactRelationship, { marginTop: 12, marginBottom: 8 }]}>
+                Pause Duration
+              </Text>
+              <View style={[styles.optionButtons, { flexWrap: 'wrap' }]}>
+                {[
+                  { label: '1 Day', days: 1 },
+                  { label: '3 Days', days: 3 },
+                  { label: '1 Week', days: 7 },
+                  { label: '2 Weeks', days: 14 },
+                ].map((opt) => {
+                  const isSelected = !!(
+                    pauseCheckIns.resumeAt &&
+                    pauseCheckIns.pausedAt &&
+                    Math.round((pauseCheckIns.resumeAt - pauseCheckIns.pausedAt) / (24 * 60 * 60 * 1000)) === opt.days
+                  );
+                  return (
+                    <TouchableOpacity
+                      key={opt.days}
+                      style={[
+                        styles.optionButton,
+                        isSelected && { borderColor: '#FFB800', backgroundColor: 'rgba(255, 184, 0, 0.1)' },
+                      ]}
+                      onPress={() =>
+                        updatePauseCheckIns({
+                          resumeAt: (pauseCheckIns.pausedAt || Date.now()) + opt.days * 24 * 60 * 60 * 1000,
+                        })
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.optionButtonText,
+                          isSelected && { color: '#FFB800' },
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <View style={styles.divider} />
+              <TextInput
+                style={[styles.textInput, { marginTop: 12 }]}
+                placeholder="Reason (optional)"
+                placeholderTextColor="#555570"
+                value={pauseReason}
+                onChangeText={setPauseReason}
+                onBlur={() => updatePauseCheckIns({ reason: pauseReason || undefined })}
+              />
+
+              {pauseCheckIns.resumeAt && (
+                <Text style={[styles.contactRelationship, { marginTop: 12, color: '#FFB800' }]}>
+                  Resumes: {new Date(pauseCheckIns.resumeAt).toLocaleDateString()}{' '}
+                  {pauseCheckIns.reason ? `(${pauseCheckIns.reason})` : ''}
+                </Text>
+              )}
+            </>
+          )}
+        </View>
+
         {/* ─── Permissions Card ────────────────────────────────── */}
         <Text style={styles.sectionTitle}>Permissions</Text>
         <View style={styles.card}>
@@ -327,6 +434,107 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
               thumbColor="#FFFFFF"
             />
           </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.settingRow}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={styles.settingLabel}>Shake to SOS</Text>
+              <Text style={styles.contactRelationship}>
+                Shake phone vigorously to trigger SOS
+              </Text>
+            </View>
+            <Switch
+              value={settings.shakeToSOS}
+              onValueChange={(value) =>
+                updateSettings({ shakeToSOS: value })
+              }
+              trackColor={{ false: '#2A2A40', true: '#FF0040' }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.settingRow}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={styles.settingLabel}>Quick Check-in Notification</Text>
+              <Text style={styles.contactRelationship}>
+                Persistent notification with one-tap check-in
+              </Text>
+            </View>
+            <Switch
+              value={settings.persistentNotification}
+              onValueChange={(value) =>
+                updateSettings({ persistentNotification: value })
+              }
+              trackColor={{ false: '#2A2A40', true: '#00FF88' }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+        </View>
+
+        {/* ─── Duress PIN Section ────────────────────────────────── */}
+        <Text style={styles.sectionTitle}>Duress PIN {!isPremium && '🔒'}</Text>
+        <View style={styles.card}>
+          {!isPremium ? (
+            <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+              <Text style={styles.contactRelationship}>
+                Premium feature — secret PIN that silently alerts contacts
+              </Text>
+              <TouchableOpacity
+                style={[styles.addContactButton, { marginTop: 12, borderColor: '#FFD700' }]}
+                onPress={() => navigation.navigate('Premium')}
+              >
+                <Text style={[styles.addContactButtonText, { color: '#FFD700' }]}>
+                  Upgrade to Premium
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              <View style={styles.settingRow}>
+                <View style={{ flex: 1, marginRight: 12 }}>
+                  <Text style={styles.settingLabel}>Enable Duress PIN</Text>
+                  <Text style={styles.contactRelationship}>
+                    Long-press check-in circle to enter PIN
+                  </Text>
+                </View>
+                <Switch
+                  value={duressPin.enabled}
+                  onValueChange={(value) => {
+                    if (value && !duressPin.pin) {
+                      setShowSetPin(true);
+                    } else {
+                      updateDuressPin({ enabled: value });
+                    }
+                  }}
+                  trackColor={{ false: '#2A2A40', true: '#FF0040' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+
+              {duressPin.enabled && duressPin.pin && (
+                <>
+                  <View style={styles.divider} />
+                  <View style={[styles.settingRow, { paddingVertical: 8 }]}>
+                    <Text style={styles.settingLabel}>
+                      Current PIN: {'••••'}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.editProfileButton}
+                      onPress={() => setShowSetPin(true)}
+                    >
+                      <Text style={styles.editProfileButtonText}>Change</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={[styles.contactRelationship, { marginTop: 4 }]}>
+                    Looks like a normal check-in but silently alerts your contacts
+                  </Text>
+                </>
+              )}
+            </>
+          )}
         </View>
 
         {/* ─── Premium Section ─────────────────────────────────── */}
@@ -353,6 +561,9 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
               </Text>
               <Text style={styles.premiumFeatureItem}>
                 {'\u2022'} Custom fake callers & alert messages
+              </Text>
+              <Text style={styles.premiumFeatureItem}>
+                {'\u2022'} Walk Me Home & Duress PIN
               </Text>
               <Text style={styles.premiumFeatureItem}>
                 {'\u2022'} Heartbeat Pulse & Stealth Mode
@@ -395,6 +606,38 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         {/* Bottom spacing */}
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* ─── Duress PIN Set Modal ────────────────────────────────── */}
+      <PinPad
+        visible={showSetPin}
+        onClose={() => setShowSetPin(false)}
+        onSubmit={(pin) => {
+          setShowSetPin(false);
+          setPendingPin(pin);
+          setShowConfirmPin(true);
+        }}
+        title="Set New PIN"
+      />
+
+      {/* ─── Duress PIN Confirm Modal ────────────────────────────── */}
+      <PinPad
+        visible={showConfirmPin}
+        onClose={() => {
+          setShowConfirmPin(false);
+          setPendingPin('');
+        }}
+        onSubmit={(pin) => {
+          setShowConfirmPin(false);
+          if (pin === pendingPin) {
+            updateDuressPin({ pin, enabled: true });
+            Alert.alert('Duress PIN Set', 'Your duress PIN has been saved. Long-press the check-in circle to use it.');
+          } else {
+            Alert.alert('PINs Don\'t Match', 'Please try again.');
+          }
+          setPendingPin('');
+        }}
+        title="Confirm PIN"
+      />
 
       {/* ─── Add Contact Modal ──────────────────────────────────── */}
       <Modal
