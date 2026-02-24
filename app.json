@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "Dead.Alive",
+    "slug": "dead-alive",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0A0F"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.deadalive.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Dead.Alive needs your location to share it with your emergency contacts when you trigger an SOS alert.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Dead.Alive needs background location access to automatically share your location during emergencies.",
+        "NSContactsUsageDescription": "Dead.Alive can import emergency contacts from your address book."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0A0A0F"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.deadalive.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-location",
+      "expo-notifications"
+    ]
+  }
+}
